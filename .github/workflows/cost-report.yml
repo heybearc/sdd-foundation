@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       path:
-        description: "Project root to scan"
+        description: "Path (inside the repo) that contains .agent/ledger.json"
         required: false
         default: "."
         type: string
@@ -16,15 +16,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Summarize tokens from .agent/ledger.json (if present)
+      - name: Print token totals from .agent/ledger.json (skip if absent)
+        shell: bash
         run: |
           cd "${{ inputs.path }}"
           if [ ! -f .agent/ledger.json ]; then
-            echo "No ledger found (.agent/ledger.json) 
- skipping."
+            echo "No .agent/ledger.json found; skipping."
             exit 0
           fi
-          # jq is available on ubuntu-latest
+          # jq is available on ubuntu-latest; if not, uncomment next line:
+          # sudo apt-get update && sudo apt-get install -y jq
           pts=$(jq '[.[] | .prompt_tokens // 0] | add // 0' .agent/ledger.json)
           cts=$(jq '[.[] | .completion_tokens // 0] | add // 0' .agent/ledger.json)
           echo "Total prompt tokens: $pts"
