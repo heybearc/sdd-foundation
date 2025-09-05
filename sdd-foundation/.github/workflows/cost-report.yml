@@ -1,0 +1,18 @@
+name: cost-report
+on:
+  workflow_call:
+jobs:
+  cost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Summarize tokens
+        run: |
+          if [ ! -f .agent/ledger.json ]; then echo "No ledger"; exit 0; fi
+          python - <<'PY'
+import json,sys
+d=json.load(open('.agent/ledger.json'))
+pt=sum(x.get('prompt_tokens',0) for x in d)
+ct=sum(x.get('completion_tokens',0) for x in d)
+print(f"Total prompt tokens: {pt}\nTotal completion tokens: {ct}")
+PY

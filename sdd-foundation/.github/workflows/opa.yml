@@ -1,0 +1,23 @@
+name: opa
+on:
+  workflow_call:
+jobs:
+  opa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CI input facts
+        run: |
+          mkdir -p ci
+          unresolved=$(grep -R "\[NEEDS CLARIFICATION" -n specs/ | wc -l || true)
+          schemas=$(ls -1 contracts/*.json 2>/dev/null | wc -l || true)
+          contract_tests=$(ls -1 tests/contract/* 2>/dev/null | wc -l || true)
+          echo "{"unresolved":$unresolved,"schema_count":$schemas,"tests_contract_count":$contract_tests}" > ci/input.json
+          cat ci/input.json
+      - name: Install conftest
+        run: |
+          curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz -o conftest.tgz
+          tar xzf conftest.tgz
+          sudo mv conftest /usr/local/bin/conftest
+      - name: Run conftest
+        run: conftest test ci/input.json -p policy/

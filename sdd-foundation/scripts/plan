@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ -x bin/generate-plan ]; then
+  bin/generate-plan
+else
+  echo "Run from a consumer repo with bin/generate-plan"; exit 1
+fi

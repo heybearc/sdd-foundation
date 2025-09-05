@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+TITLE="${*:-New Feature}"
+if [ -x bin/new-feature ]; then
+  bin/new-feature "$TITLE"
+else
+  echo "Run from a consumer repo with bin/new-feature"; exit 1
+fi

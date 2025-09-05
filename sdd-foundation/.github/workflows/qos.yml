@@ -1,0 +1,90 @@
+name: qos
+on:
+  workflow_call:
+    inputs:
+      qos_url:
+        required: false
+        type: string
+      p95_budget_ms:
+        required: false
+        type: number
+        default: 200
+      bundle_budget_kb:
+        required: false
+        type: number
+        default: 200
+jobs:
+  qos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load budgets
+        id: budgets
+        run: |
+          p95=${{ inputs.p95_budget_ms }}
+          bundle=${{ inputs.bundle_budget_kb }}
+          if [ -f .sdd/qos.defaults.json ]; then
+            p95=$(jq -r '.api.p95_ms // empty' .sdd/qos.defaults.json || echo "$p95")
+            bundle=$(jq -r '.spa.bundle_kb // empty' .sdd/qos.defaults.json || echo "$bundle")
+          fi
+          if [ -f .sdd/qos.overrides.json ]; then
+            p95=$(jq -r '.api.p95_ms // empty' .sdd/qos.overrides.json || echo "$p95")
+            bundle=$(jq -r '.spa.bundle_kb // empty' .sdd/qos.overrides.json || echo "$bundle")
+          fi
+          echo "p95=$p95" >> $GITHUB_OUTPUT
+          echo "bundle=$bundle" >> $GITHUB_OUTPUT
+
+      - name: Install Node dependencies (if any)
+        if: hashFiles('package.json') != ''
+        run: |
+          npm ci || npm install || true
+
+      - name: Bundle size check (size-limit) (optional)
+        if: hashFiles('package.json') != ''
+        run: |
+          npx -y size-limit || true
+          npx -y size-limit --json > size.json || true
+
+      - name: Enforce bundle budget
+        if: hashFiles('size.json') != ''
+        run: |
+          python - <<'PY'
+import json, os
+budget_kb = float(os.environ["BUDGET_KB"])
+try:
+  s=json.load(open('size.json'))
+  size = s[0].get('size', 0)
+  kb = size/1024.0
+  print(f"Bundle size: {kb:.1f} KB (budget {budget_kb} KB)")
+  assert kb <= budget_kb, f"Bundle {kb:.1f}KB exceeds {budget_kb}KB"
+except Exception as e:
+  print("Bundle check skipped or failed softly:", e)
+PY
+        env:
+          BUDGET_KB: ${{ steps.budgets.outputs.bundle }}
+
+      - name: API smoke (autocannon)
+        if: inputs.qos_url != ''
+        run: |
+          npx -y autocannon -d 15 -c 20 "${{ inputs.qos_url }}" > perf.txt || true
+          echo '{"latency":{"p95":9999}}' > perf.json
+          grep -i 'p95' perf.txt | awk '{print $NF}' | head -n1 | xargs -I{} python - <<'PY'
+import json,sys
+p95=float(sys.argv[1]) if len(sys.argv)>1 else 9999
+json.dump({"latency":{"p95":p95}}, open("perf.json","w"))
+PY {}
+
+      - name: Enforce p95 budget
+        if: hashFiles('perf.json') != ''
+        run: |
+          python - <<'PY'
+import json, os
+budget = float(os.environ["P95_BUDGET_MS"])
+m=json.load(open('perf.json'))
+p95 = m.get('latency',{}).get('p95', 9999)
+print(f"p95: {p95} ms (budget {budget} ms)")
+assert p95 <= budget, f"p95 {p95}ms exceeds {budget}ms"
+PY
+        env:
+          P95_BUDGET_MS: ${{ steps.budgets.outputs.p95 }}

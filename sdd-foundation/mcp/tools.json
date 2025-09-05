@@ -1,0 +1,33 @@
+{
+  "github": {
+    "tools": [
+      "get_diff",
+      "list_prs",
+      "comment_pr"
+    ]
+  },
+  "files": {
+    "tools": [
+      "read_file_section",
+      "read_file"
+    ]
+  },
+  "metrics": {
+    "tools": [
+      "get_perf_json",
+      "get_size_json",
+      "get_lhci_json"
+    ]
+  },
+  "contracts": {
+    "tools": [
+      "run_schemathesis",
+      "run_dredd"
+    ]
+  },
+  "policy": {
+    "tools": [
+      "evaluate_opa"
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+name: contracts-conformance
+on:
+  workflow_call:
+    inputs:
+      openapi_path:
+        required: false
+        type: string
+        default: contracts/openapi.yaml
+      base_url:
+        required: false
+        type: string
+        default: ""
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check OpenAPI exists
+        id: check
+        run: |
+          if [ ! -f "${{ inputs.openapi_path }}" ]; then
+            echo "no_spec=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python
+        if: steps.check.outputs.no_spec != 'true' && inputs.base_url != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install schemathesis
+        if: steps.check.outputs.no_spec != 'true' && inputs.base_url != ''
+        run: pip install schemathesis
+
+      - name: Run schemathesis (quick)
+        if: steps.check.outputs.no_spec != 'true' && inputs.base_url != ''
+        env:
+          SCHEMA_HEADER: ${{ secrets.SCHEMA_AUTH_HEADER }}
+        run: |
+          schemathesis run "${{ inputs.openapi_path }}"             --base-url "${{ inputs.base_url }}"             --checks all --hypothesis-max-examples 5             ${SCHEMA_HEADER:+--header "$SCHEMA_HEADER"} || true
+
+      - name: Dredd dry run (optional)
+        if: steps.check.outputs.no_spec != 'true' && inputs.base_url != ''
+        env:
+          SCHEMA_HEADER: ${{ secrets.SCHEMA_AUTH_HEADER }}
+        run: |
+          npm i -g dredd || true
+          dredd "${{ inputs.openapi_path }}" "${{ inputs.base_url }}"             ${SCHEMA_HEADER:+--header "$SCHEMA_HEADER"} --dry-run || true

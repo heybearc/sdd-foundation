@@ -1,0 +1,25 @@
+name: quality-gate
+on:
+  workflow_call:
+    inputs:
+      qos_url:
+        required: false
+        type: string
+      p95_budget_ms:
+        required: false
+        type: number
+        default: 200
+      bundle_budget_kb:
+        required: false
+        type: number
+        default: 200
+jobs:
+  qos:
+    uses: ./.github/workflows/qos.yml
+    with:
+      qos_url: ${{ inputs.qos_url }}
+      p95_budget_ms: ${{ inputs.p95_budget_ms }}
+      bundle_budget_kb: ${{ inputs.bundle_budget_kb }}
+
+  opa:
+    uses: ./.github/workflows/opa.yml
