@@ -8,12 +8,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install conftest
         run: |
-          VERSION=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest | jq -r .tag_name)
-          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-          ARCH=$(uname -m)
-          curl -sL https://github.com/open-policy-agent/conftest/releases/download/${VERSION}/conftest_${OS}_${ARCH}.tar.gz -o conftest.tgz
+          set -euo pipefail
+          # Find the Linux x86_64 tarball from the latest release
+          REL_JSON="$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest)"
+          URL="$(echo "$REL_JSON" | jq -r '.assets[] | select(.name | test("Linux_x86_64\\.tar\\.gz$")) | .browser_download_url')"
+          echo "Downloading: $URL"
+          curl -sL "$URL" -o conftest.tgz
           mkdir -p ~/bin
           tar -xzf conftest.tgz -C ~/bin
+          ~/bin/conftest --version
           echo "$HOME/bin" >> $GITHUB_PATH
       - name: Run conftest
         run: |
