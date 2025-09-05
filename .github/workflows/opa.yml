@@ -14,11 +14,11 @@ jobs:
           contract_tests=$(ls -1 tests/contract/* 2>/dev/null | wc -l || true)
           echo "{"unresolved":$unresolved,"schema_count":$schemas,"tests_contract_count":$contract_tests}" > ci/input.json
           cat ci/input.json
-      - name: Install conftest
-        run: |
-          curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz -o conftest.tgz
-          mkdir -p ~/bin
-          tar -xzf conftest.tgz -C ~/bin
-          echo "$HOME/bin" >> $GITHUB_PATH
-      - name: Run conftest
-        run: conftest test ci/input.json -p policy/
+     - name: Install conftest
+       run: |
+         curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_$(uname -s)_$(uname -m).tar.gz -o conftest.tgz
+         mkdir -p ~/bin
+         tar -xzf conftest.tgz -C ~/bin
+         echo "$HOME/bin" >> $GITHUB_PATH
+     - name: Run conftest
+       run: conftest test ci/input.json -p policy/
