@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       qos_url:
-        description: "HTTP(S) URL of a running endpoint to probe (optional). Leave empty to skip latency check."
+        description: "HTTP(S) URL of an endpoint to probe (optional). Leave empty to skip latency check."
         required: false
         default: ""
         type: string
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------- Optional latency probe (skips if qos_url is empty) ----------
+      # ----- Optional latency probe (skips if qos_url is empty) -----
       - name: Setup Node (for autocannon)
         if: ${{ inputs.qos_url != '' }}
         uses: actions/setup-node@v4
@@ -36,7 +36,7 @@ jobs:
       - name: Run autocannon to measure latency
         if: ${{ inputs.qos_url != '' }}
         run: |
-          npx --yes autocannon ${{ inputs.qos_url }} -d 10 -c 10 --renderStatusCodes --json > qos.json
+          npx --yes autocannon "${{ inputs.qos_url }}" -d 10 -c 10 --renderStatusCodes --json > qos.json
           cat qos.json
 
       - name: Enforce p95 budget
@@ -45,17 +45,13 @@ jobs:
           P95=$(jq -r '.latency.p95 // empty' qos.json)
           echo "Measured p95: ${P95:-N/A} ms (budget: ${{ inputs.p95_budget_ms }} ms)"
           if [ -z "$P95" ]; then
-            echo "No p95 measured (empty result). Failing to avoid masking outages."
+            echo "No p95 measured; failing to avoid masking outages."
             exit 1
           fi
-          awk "BEGIN {exit !($P95 <= ${{ inputs.p95_budget_ms }})}" || { echo "
- p95 ${P95}ms exceeds budget ${{ inputs.p95_budget_ms }}ms"; exit 1; }
-          echo "
- p95 within budget."
+          awk "BEGIN {exit !($P95 <= ${{ inputs.p95_budget_ms }})}" || { echo "p95 ${P95}ms exceeds budget ${{ inputs.p95_budget_ms }}ms"; exit 1; }
+          echo "p95 within budget."
 
-      # ---------- Optional bundle-size check (skips if size.json missing) ----------
-      # Expect a file 'size.json' with an array of bundles and 'sizeKB' per entry.
-      # If your repo publishes elsewhere, adjust the path here or in callers.
+      # ----- Optional bundle-size check (skips if size.json missing) -----
       - name: Check bundle size budget
         run: |
           if [ ! -f size.json ]; then
@@ -64,7 +60,5 @@ jobs:
           fi
           MAXKB=$(jq '[.[] | .sizeKB // 0] | max' size.json)
           echo "Largest bundle: ${MAXKB} KB (budget: ${{ inputs.bundle_budget_kb }} KB)"
-          awk "BEGIN {exit !($MAXKB <= ${{ inputs.bundle_budget_kb }})}" || { echo "
- bundle ${MAXKB}KB exceeds budget ${{ inputs.bundle_budget_kb }}KB"; exit 1; }
-          echo "
- bundle size within budget."
+          awk "BEGIN {exit !($MAXKB <= ${{ inputs.bundle_budget_kb }})}" || { echo "bundle ${MAXKB}KB exceeds budget ${{ inputs.bundle_budget_kb }}KB"; exit 1; }
+          echo "bundle size within budget."
