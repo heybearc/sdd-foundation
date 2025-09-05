@@ -17,7 +17,8 @@ jobs:
       - name: Install conftest
         run: |
           curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz -o conftest.tgz
-          tar xzf conftest.tgz
-          sudo mv conftest /usr/local/bin/conftest
+          mkdir -p ~/bin
+          tar -xzf conftest.tgz -C ~/bin
+          echo "$HOME/bin" >> $GITHUB_PATH
       - name: Run conftest
         run: conftest test ci/input.json -p policy/
