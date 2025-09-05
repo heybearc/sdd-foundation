@@ -1,18 +1,31 @@
 name: cost-report
+
 on:
   workflow_call:
+    inputs:
+      path:
+        description: "Project root to scan"
+        required: false
+        default: "."
+        type: string
+
 jobs:
   cost:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Summarize tokens
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Summarize tokens from .agent/ledger.json (if present)
         run: |
-          if [ ! -f .agent/ledger.json ]; then echo "No ledger"; exit 0; fi
-          python - <<'PY'
-import json,sys
-d=json.load(open('.agent/ledger.json'))
-pt=sum(x.get('prompt_tokens',0) for x in d)
-ct=sum(x.get('completion_tokens',0) for x in d)
-print(f"Total prompt tokens: {pt}\nTotal completion tokens: {ct}")
-PY
+          cd "${{ inputs.path }}"
+          if [ ! -f .agent/ledger.json ]; then
+            echo "No ledger found (.agent/ledger.json) 
+ skipping."
+            exit 0
+          fi
+          # jq is available on ubuntu-latest
+          pts=$(jq '[.[] | .prompt_tokens // 0] | add // 0' .agent/ledger.json)
+          cts=$(jq '[.[] | .completion_tokens // 0] | add // 0' .agent/ledger.json)
+          echo "Total prompt tokens: $pts"
+          echo "Total completion tokens: $cts"
